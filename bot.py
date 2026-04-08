@@ -57,7 +57,7 @@ async def lizard_button_press(message: types.Message) -> None:
         await message.answer("Ящерица")
     elif clicks == 5:
         await message.answer("Я хочу ящерицу")
-        await message.answer(f"{user_name}, ты уверен? Может всё-таки хомячка? 🙂")
+        await message.answer(f"{user_name}, ты дурак совсем какая ящерица")
         user_clicks[user_id] = 0
     else:
         user_clicks[user_id] = 0
