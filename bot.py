@@ -20,8 +20,11 @@ dp = Dispatcher()
 # Сколько раз пользователь нажал кнопку в текущем цикле
 user_clicks: defaultdict[int, int] = defaultdict(int)
 
+LIZARD_BUTTON_TEXT = "Ящерица"
+RESTART_BUTTON_TEXT = "Сначала"
+
 lizard_keyboard = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="Ящерица")]],
+    keyboard=[[KeyboardButton(text=LIZARD_BUTTON_TEXT), KeyboardButton(text=RESTART_BUTTON_TEXT)]],
     resize_keyboard=True,
 )
 
@@ -48,8 +51,7 @@ async def send_step_image(message: types.Message, image_index: int) -> None:
         await message.answer(f"[Не найден файл изображения: {image_path}]")
 
 
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message) -> None:
+async def start_flow(message: types.Message) -> None:
     user_id = message.from_user.id
 
     user_clicks[user_id] = 0
@@ -61,7 +63,17 @@ async def cmd_start(message: types.Message) -> None:
     )
 
 
-@dp.message(F.text == "Ящерица")
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message) -> None:
+    await start_flow(message)
+
+
+@dp.message(F.text == RESTART_BUTTON_TEXT)
+async def restart_button(message: types.Message) -> None:
+    await start_flow(message)
+
+
+@dp.message(F.text == LIZARD_BUTTON_TEXT)
 async def lizard_click(message: types.Message) -> None:
     user_id = message.from_user.id
     user_name = message.from_user.first_name or "друг"
