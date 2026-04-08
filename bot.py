@@ -16,30 +16,22 @@ if not TOKEN:
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Состояние: сколько нажатий сделал пользователь в текущем цикле
+# Сколько раз пользователь нажал кнопку в текущем цикле
 user_clicks: defaultdict[int, int] = defaultdict(int)
 
-# Последовательность текста кнопки (то, что отправляет пользователь)
-CLICK_TEXTS = [
-    "Я хочу ящерицу!",   # 1 нажатие
-    "Ящерица!",          # 2 нажатие
-    "Ящерицу!",          # 3 нажатие
-    "Ящерица",           # 4 нажатие
-    "Ящерица",           # 5 нажатие
-]
+lizard_keyboard = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="Ящерица")]],
+    resize_keyboard=True,
+)
 
-
-def make_keyboard(button_text: str) -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=button_text)]],
-        resize_keyboard=True,
-    )
-
-
-async def silent_keyboard_update(message: types.Message, button_text: str) -> None:
-    """Обновляет кнопку без видимого ответа: служебное сообщение сразу удаляется."""
-    temp = await message.answer("\u2060", reply_markup=make_keyboard(button_text))
-    await bot.delete_message(chat_id=temp.chat.id, message_id=temp.message_id)
+# Ожидаемые реплики пользователя по шагам цикла (для логики сценария)
+USER_STEP_TEXTS = {
+    1: "Я хочу ящерицу!",
+    2: "Ящерица!",
+    3: "Ящерицу!",
+    4: "Ящерица",
+    5: "Ящерица",
+}
 
 
 @dp.message(Command("start"))
@@ -51,42 +43,35 @@ async def cmd_start(message: types.Message) -> None:
 
     await message.answer(
         f"Ну давай, {user_name}, выбирай.",
-        reply_markup=make_keyboard(CLICK_TEXTS[0]),
+        reply_markup=lizard_keyboard,
     )
 
 
-@dp.message(F.text.in_(CLICK_TEXTS))
-async def click_flow(message: types.Message) -> None:
+@dp.message(F.text == "Ящерица")
+async def lizard_click(message: types.Message) -> None:
     user_id = message.from_user.id
     user_name = message.from_user.first_name or "друг"
 
     user_clicks[user_id] += 1
-    click_number = user_clicks[user_id]
+    step = user_clicks[user_id]
 
-    if click_number == 1:
-        # Бот НЕ отвечает
-        await silent_keyboard_update(message, CLICK_TEXTS[1])
+    # 1, 3, 4 нажатия: бот не отвечает
+    if step in {1, 3, 4}:
+        return
 
-    elif click_number == 2:
-        await message.answer("Ящерица!", reply_markup=make_keyboard(CLICK_TEXTS[2]))
+    # 2 нажатие: бот отвечает
+    if step == 2:
         await message.answer(f"{user_name}, может все таки хомячка?")
+        return
 
-    elif click_number == 3:
-        # Бот НЕ отвечает
-        await silent_keyboard_update(message, CLICK_TEXTS[3])
-
-    elif click_number == 4:
-        # Бот НЕ отвечает
-        await silent_keyboard_update(message, CLICK_TEXTS[4])
-
-    elif click_number == 5:
-        await message.answer("Ящерица", reply_markup=make_keyboard(CLICK_TEXTS[0]))
+    # 5 нажатие: бот отвечает и сбрасывает цикл
+    if step == 5:
         await message.answer(f"{user_name}, ты дурак совсем?")
         user_clicks[user_id] = 0
+        return
 
-    else:
-        user_clicks[user_id] = 0
-        await message.answer("Сброс цикла. Нажми кнопку снова.", reply_markup=make_keyboard(CLICK_TEXTS[0]))
+    # Защита от рассинхронизации: если > 5, сбрасываем
+    user_clicks[user_id] = 0
 
 
 async def main() -> None:
